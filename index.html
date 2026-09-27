@@ -46,7 +46,7 @@
         header {
             text-align: center;
             margin-bottom: 2rem;
-            padding: 1.5rem 0;
+            padding: 1.5rem 1rem;
             background-color: var(--card-bg);
             border-radius: 16px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -70,7 +70,6 @@
             letter-spacing: 1px;
         }
 
-        /* The new Install Button CSS */
         .install-btn {
             background-color: var(--accent);
             color: #ffffff;
@@ -97,10 +96,25 @@
             line-height: 1.1;
         }
 
+        .expected-sum {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--alert);
+            margin-top: 0.25rem;
+            letter-spacing: 0.5px;
+        }
+
         .currency {
             font-size: 1.2rem;
             color: var(--text-secondary);
             font-weight: 500;
+        }
+
+        .currency-sub {
+            font-size: 0.85rem;
+            color: var(--alert);
+            opacity: 0.85;
+            font-weight: 600;
         }
 
         .grid {
@@ -189,6 +203,7 @@
                 <button id="install-btn" class="install-btn" style="display: none;">⬇️ Install App</button>
             </div>
             <div class="total-sum" id="total-amount">...<span class="currency"> MAD</span></div>
+            <div class="expected-sum" id="expected-amount">...</div>
         </header>
 
         <div id="loader">Syncing data...</div>
@@ -203,7 +218,7 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            installBtn.style.display = 'block'; // Show the button when ready
+            installBtn.style.display = 'block'; 
         });
 
         installBtn.addEventListener('click', async () => {
@@ -253,7 +268,7 @@
 
                 Papa.parse(csvText, {
                     header: true,
-                    skipEmptyLines: true, // Automatically ignores the blank lines you removed
+                    skipEmptyLines: true, 
                     complete: function(results) {
                         try {
                             if (results.data.length === 0) throw new Error("CSV is empty.");
@@ -275,6 +290,7 @@
 
         function processData(data) {
             let totalPot = 0;
+            let totalExpected = 0;
             const grid = document.getElementById('user-grid');
             grid.innerHTML = ''; 
             const currentDate = new Date(); 
@@ -287,18 +303,34 @@
                 const paidMonths = parseInt(row['number of paid months']) || 0;
                 const startingMonthStr = row['Starting month'];
 
-                if (!name || name === 'Unknown') return; // Skip entirely invalid rows
+                if (!name || name === 'Unknown') return; 
 
+                // 1. Contributed pot
                 const userTotalContributed = initialShare + (monthlyShare * paidMonths);
                 totalPot += userTotalContributed;
 
-                let lackedMonths = 0;
+                // 2. Expected months calculation (End of Month Rule)
+                let expectedMonths = 0;
                 if (startingMonthStr) {
                     const startDate = new Date(startingMonthStr);
-                    const expectedMonths = (currentDate.getFullYear() - startDate.getFullYear()) * 12 + (currentDate.getMonth() - startDate.getMonth()) + 1;
-                    lackedMonths = Math.max(0, expectedMonths - paidMonths);
+                    
+                    expectedMonths = (currentDate.getFullYear() - startDate.getFullYear()) * 12 + (currentDate.getMonth() - startDate.getMonth());
+                    
+                    const daysInCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+                    if (currentDate.getDate() === daysInCurrentMonth) {
+                        expectedMonths += 1;
+                    }
+
+                    if (expectedMonths < 0) expectedMonths = 0;
                 }
 
+                // 3. Expected pot if all dues are paid
+                const userExpected = initialShare + (monthlyShare * expectedMonths);
+                totalExpected += userExpected;
+
+                const lackedMonths = Math.max(0, expectedMonths - paidMonths);
+
+                // 4. Render Card
                 const card = document.createElement('div');
                 card.className = 'card';
 
@@ -347,6 +379,7 @@
             });
 
             document.getElementById('total-amount').innerHTML = `${totalPot.toLocaleString()} <span class="currency">MAD</span>`;
+            document.getElementById('expected-amount').innerHTML = `/${totalExpected.toLocaleString()} <span class="currency-sub">MAD</span>`;
         }
 
         initApp();
