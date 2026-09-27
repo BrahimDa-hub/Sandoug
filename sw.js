@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sandoug-cache-v3'; // Version bump is mandatory to apply updates
+const CACHE_NAME = 'sandoug-cache-v4'; // Critical version bump
 const urlsToCache = [
   './',
   './index.html',
@@ -7,52 +7,48 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Forces the waiting service worker to become active immediately
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-  );
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim()); // Take control of all pages immediately
+  event.waitUntil(self.clients.claim());
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache); // Delete old v1 and v2 caches
-          }
-        })
-      );
-    })
+    caches.keys().then(keys => Promise.all(
+      keys.map(key => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      })
+    ))
   );
 });
 
 self.addEventListener('fetch', event => {
-  // CSV Routing: Network First, Fallback to Cache
+  // 1. CSV Data: Network-First to ensure live updates
   if (event.request.url.includes('SANDOUG.csv')) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const clonedResponse = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            // Cache the CSV cleanly without the timestamp query parameter
-            cache.put(new Request('SANDOUG.csv'), clonedResponse);
-          });
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(new Request('SANDOUG.csv'), cloned));
           return response;
         })
-        .catch(() => {
-          // If offline, retrieve the clean CSV from cache
-          return caches.match('SANDOUG.csv');
-        })
+        .catch(() => caches.match('SANDOUG.csv'))
     );
     return;
   }
 
-  // App Routing: Cache First, Fallback to Network
+  // 2. HTML Pages: Network-First (Fixes the black screen issue)
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept').includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(event.request)
+          .then(response => response || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // 3. Static Assets: Cache-First for speed
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
