@@ -2,17 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Viewport meta tag is crucial for mobile scaling -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#121212">
-    <title>Sandoug Dashboard</title>
     
-    <!-- PWA Manifest -->
+    <!-- PWA Requirements -->
+    <title>Sandoug</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#121212">
+    <!-- iOS support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sandoug">
 
-    <!-- PapaParse -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js](https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js)"></script>
     <style>
         :root {
             --bg-color: #121212;
@@ -28,7 +30,8 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            -webkit-tap-highlight-color: transparent;
+            /* Prevent text selection on mobile for app-like feel */
+            -webkit-tap-highlight-color: transparent; 
         }
 
         body {
@@ -36,24 +39,29 @@
             color: var(--text-primary);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
-            padding: 1rem; /* Reduced for mobile */
-            padding-top: env(safe-area-inset-top, 1rem); /* iPhone notch support */
+            /* Extra padding at bottom for mobile scrolling */
+            padding: 1rem 1rem 3rem 1rem; 
         }
 
         .container {
-            max-width: 600px; /* Constrained for mobile focus */
+            max-width: 600px; /* Constrained for mobile/tablet */
             margin: 0 auto;
         }
 
         header {
             text-align: center;
             margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 0;
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 10px;
+            z-index: 100;
         }
 
         header h1 {
-            font-size: 1.2rem;
+            font-size: 1rem;
             color: var(--text-secondary);
             margin-bottom: 0.25rem;
             text-transform: uppercase;
@@ -61,79 +69,79 @@
         }
 
         .total-sum {
-            font-size: 3rem; /* Scaled down for mobile */
+            font-size: 2.8rem;
             font-weight: 800;
             color: var(--accent);
+            line-height: 1.1;
         }
 
         .currency {
-            font-size: 1rem;
+            font-size: 1.2rem;
             color: var(--text-secondary);
-            font-weight: normal;
+            font-weight: 500;
         }
 
-        /* 1 column on phones, 2 columns on small tablets */
         .grid {
             display: grid;
-            grid-template-columns: 1fr;
+            /* Single column on phones, two on slightly larger screens */
+            grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
             gap: 1rem;
-        }
-
-        @media (min-width: 480px) {
-            .grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
         }
 
         .card {
             background-color: var(--card-bg);
-            border-radius: 16px; /* Softer corners for mobile */
+            border-radius: 16px;
             padding: 1.25rem;
             display: flex;
             flex-direction: column;
-            align-items: center;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
         }
 
         .avatar {
-            width: 80px;
-            height: 80px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
             object-fit: cover;
-            margin-bottom: 0.75rem;
             border: 2px solid var(--border);
+            margin-right: 1rem;
         }
 
         .member-name {
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
+            font-size: 1.2rem;
             font-weight: 600;
-            text-align: center;
         }
 
         .stats-container {
-            width: 100%;
+            display: flex;
+            gap: 0.5rem;
         }
 
         .stats {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex: 1;
             background-color: var(--bg-color);
-            padding: 0.6rem 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
         }
 
         .stat-label {
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
         }
 
         .stat-value {
-            font-size: 1rem;
-            font-weight: bold;
+            font-size: 1.3rem;
+            font-weight: 700;
         }
 
         .paid { color: var(--accent); }
@@ -161,17 +169,18 @@
     </div>
 
     <script>
-        // Register the Service Worker for PWA
+        // --- 1. Register Service Worker for PWA functionality ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker Registered'))
-                    .catch(err => console.log('Service Worker Failed', err));
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('ServiceWorker registered'))
+                    .catch(err => console.log('ServiceWorker registration failed: ', err));
             });
         }
 
+        // --- 2. Load and Process Data ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Append timestamp to bypass caching of the CSV
+            // Timestamp prevents aggressive mobile caching of the CSV
             const csvUrl = 'SANDOUG.csv?v=' + new Date().getTime();
 
             Papa.parse(csvUrl, {
@@ -183,7 +192,7 @@
                     processData(results.data);
                 },
                 error: function(err) {
-                    document.getElementById('loader').innerText = "Network error. Showing cached data if available.";
+                    document.getElementById('loader').innerText = "Offline or Error loading data.";
                     console.error("Error loading CSV:", err);
                 }
             });
@@ -192,8 +201,6 @@
         function processData(data) {
             let totalPot = 0;
             const grid = document.getElementById('user-grid');
-            grid.innerHTML = ''; // Clear existing content
-            
             const currentDate = new Date(); 
 
             data.forEach(row => {
@@ -204,8 +211,11 @@
                 const paidMonths = parseInt(row['number of paid months']) || 0;
                 const startingMonthStr = row['Starting month'];
 
-                totalPot += initialShare + (monthlyShare * paidMonths);
+                // Tally total
+                const userTotalContributed = initialShare + (monthlyShare * paidMonths);
+                totalPot += userTotalContributed;
 
+                // Calculate lacked months
                 let lackedMonths = 0;
                 if (startingMonthStr) {
                     const startDate = new Date(startingMonthStr);
@@ -213,38 +223,50 @@
                     lackedMonths = Math.max(0, expectedMonths - paidMonths);
                 }
 
+                // Create Card (Optimized for Mobile UI)
                 const card = document.createElement('div');
                 card.className = 'card';
+
+                const cardHeader = document.createElement('div');
+                cardHeader.className = 'card-header';
 
                 const img = document.createElement('img');
                 img.className = 'avatar';
                 img.src = `images/${memberId}.jpg`;
-                img.alt = `${name}`;
+                img.alt = name;
                 img.onerror = function() {
-                    this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=333&color=fff&size=150`;
+                    this.src = `[https://ui-avatars.com/api/?name=$](https://ui-avatars.com/api/?name=$){encodeURIComponent(name)}&background=333&color=fff&size=150`;
                 };
 
                 const nameEl = document.createElement('div');
                 nameEl.className = 'member-name';
                 nameEl.innerText = name;
 
+                cardHeader.appendChild(img);
+                cardHeader.appendChild(nameEl);
+
                 const statsContainer = document.createElement('div');
                 statsContainer.className = 'stats-container';
 
                 const statsPaid = document.createElement('div');
                 statsPaid.className = 'stats';
-                statsPaid.innerHTML = `<span class="stat-label">Months Paid</span><span class="stat-value paid">${paidMonths}</span>`;
+                statsPaid.innerHTML = `
+                    <span class="stat-label">Paid</span>
+                    <span class="stat-value paid">${paidMonths}</span>
+                `;
 
                 const statsLacked = document.createElement('div');
                 statsLacked.className = 'stats';
                 const lackedClass = lackedMonths > 0 ? 'lacked' : 'zero-lacked';
-                statsLacked.innerHTML = `<span class="stat-label">Months Lacked</span><span class="stat-value ${lackedClass}">${lackedMonths}</span>`;
+                statsLacked.innerHTML = `
+                    <span class="stat-label">Lacks</span>
+                    <span class="stat-value ${lackedClass}">${lackedMonths}</span>
+                `;
 
                 statsContainer.appendChild(statsPaid);
                 statsContainer.appendChild(statsLacked);
 
-                card.appendChild(img);
-                card.appendChild(nameEl);
+                card.appendChild(cardHeader);
                 card.appendChild(statsContainer);
                 
                 grid.appendChild(card);
