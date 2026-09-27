@@ -1,210 +1,62 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <title>Sandoug</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#121212">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Sandoug">
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --accent: #4caf50;
-            --alert: #f44336;
-            --border: #333333;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent; 
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            padding: 1rem 1rem 3rem 1rem; 
-        }
-
-        .container {
-            max-width: 600px; 
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding: 1.5rem 0;
-            background-color: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            position: sticky;
-            top: 10px;
-            z-index: 100;
-        }
-
-        header h1 {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.25rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .total-sum {
-            font-size: 2.8rem;
-            font-weight: 800;
-            color: var(--accent);
-            line-height: 1.1;
-        }
-
-        .currency {
-            font-size: 1.2rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
-            gap: 1rem;
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 16px;
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid var(--border);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--border);
-            margin-right: 1rem;
-        }
-
-        .member-name {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-
-        .stats-container {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .stats {
-            flex: 1;
-            background-color: var(--bg-color);
-            padding: 0.75rem;
-            border-radius: 10px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            margin-bottom: 0.25rem;
-        }
-
-        .stat-value {
-            font-size: 1.3rem;
-            font-weight: 700;
-        }
-
-        .paid { color: var(--accent); }
-        .lacked { color: var(--alert); }
-        .zero-lacked { color: var(--text-secondary); }
-
-        #loader {
-            text-align: center;
-            font-size: 1rem;
-            color: var(--text-secondary);
-            margin-top: 2rem;
-            padding: 1rem;
-            background: var(--card-bg);
-            border-radius: 8px;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="container">
-        <header>
-            <h1>Total Savings</h1>
-            <div class="total-sum" id="total-amount">...<span class="currency"> MAD</span></div>
-        </header>
-
-        <div id="loader">Syncing data...</div>
-        <div class="grid" id="user-grid"></div>
-    </div>
-
-    <script>
+<script>
         // 1. Service Worker Registration
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .then(() => console.log('ServiceWorker registered'))
-                .catch(err => console.log('ServiceWorker failed: ', err));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => console.log('ServiceWorker registered'))
+                    .catch(err => console.log('ServiceWorker failed: ', err));
+            });
         }
 
-        // 2. Initialization Function (Runs immediately, bypassing DOM load traps)
-        function initApp() {
+        // 2. Modern Fetch & Parse
+        async function initApp() {
             const loader = document.getElementById('loader');
-
-            // Failsafe: Ensure PapaParse successfully loaded from CDN
+            
             if (typeof Papa === 'undefined') {
-                loader.innerText = "Error: System resources failed to load. Check your internet connection.";
+                loader.innerText = "Error: System resources missing.";
                 return;
             }
 
-            // Check if testing locally (file://) or online to prevent protocol blockages
-            const isLocal = window.location.protocol === 'file:';
-            const csvUrl = isLocal ? 'SANDOUG.csv' : 'SANDOUG.csv?v=' + new Date().getTime();
-
-            Papa.parse(csvUrl, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    try {
-                        processData(results.data);
-                        loader.style.display = 'none'; // Hide loader only if processing succeeds
-                    } catch (error) {
-                        loader.innerText = "Data error: The CSV file structure is invalid.";
-                        console.error(error);
-                    }
-                },
-                error: function(err) {
-                    loader.innerText = "Offline or Error loading SANDOUG.csv. Ensure the file is on GitHub.";
-                    console.error("PapaParse Error:", err);
+            try {
+                // Force a network request for the latest CSV
+                const csvUrl = 'SANDOUG.csv?v=' + new Date().getTime();
+                
+                // Use modern fetch() instead of PapaParse's built-in XHR
+                const response = await fetch(csvUrl, { cache: 'no-store' });
+                
+                if (!response.ok) {
+                    throw new Error("Network response was not OK.");
                 }
-            });
+                
+                const csvText = await response.text();
+                
+                // Protect against GitHub Pages deployment HTML pages
+                if (csvText.trim().startsWith('<!DOCTYPE') || csvText.trim().startsWith('<html')) {
+                    throw new Error("GitHub is deploying updates. Please refresh in 1 minute.");
+                }
+
+                // Parse the raw text
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        try {
+                            processData(results.data);
+                            loader.style.display = 'none';
+                        } catch (error) {
+                            loader.innerText = "Data error: Check CSV columns.";
+                            console.error(error);
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                // Display the exact error so it never hangs blindly
+                loader.innerText = error.message.includes("deploying") 
+                    ? error.message 
+                    : "Network error. Close and reopen the app to try again.";
+                console.error("Fetch Error:", error);
+            }
         }
 
         function processData(data) {
@@ -221,11 +73,9 @@
                 const paidMonths = parseInt(row['number of paid months']) || 0;
                 const startingMonthStr = row['Starting month'];
 
-                // Tally total
                 const userTotalContributed = initialShare + (monthlyShare * paidMonths);
                 totalPot += userTotalContributed;
 
-                // Calculate lacked months
                 let lackedMonths = 0;
                 if (startingMonthStr) {
                     const startDate = new Date(startingMonthStr);
@@ -233,7 +83,6 @@
                     lackedMonths = Math.max(0, expectedMonths - paidMonths);
                 }
 
-                // Create Card
                 const card = document.createElement('div');
                 card.className = 'card';
 
@@ -288,5 +137,3 @@
         // Fire initialization directly
         initApp();
     </script>
-</body>
-</html>
