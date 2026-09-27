@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandoug Savings Dashboard</title>
+    <!-- PapaParse for parsing the CSV dynamically -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent: #4caf50;
+            --alert: #f44336;
+            --border: #333333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .total-sum {
+            font-size: 4rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .currency {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+
+        .avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 1rem;
+            border: 3px solid var(--border);
+        }
+
+        .member-name {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            background-color: var(--bg-color);
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .paid { color: var(--accent); }
+        .lacked { color: var(--alert); }
+        
+        .zero-lacked { color: var(--text-secondary); }
+
+        /* Loader */
+        #loader {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Total Savings</h1>
+            <div class="total-sum" id="total-amount">...<span class="currency"> MAD</span></div>
+        </header>
+
+        <div id="loader">Loading data from SANDOUG.csv...</div>
+        <div class="grid" id="user-grid"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Append a timestamp to the URL to bypass GitHub Pages caching
+            // This ensures you always see the latest data after redeploying
+            const csvUrl = 'SANDOUG.csv?v=' + new Date().getTime();
+
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    document.getElementById('loader').style.display = 'none';
+                    processData(results.data);
+                },
+                error: function(err) {
+                    document.getElementById('loader').innerText = "Error loading CSV. Make sure SANDOUG.csv is in the repository.";
+                    console.error("Error loading CSV:", err);
+                }
+            });
+        });
+
+        function processData(data) {
+            let totalPot = 0;
+            const grid = document.getElementById('user-grid');
+            
+            // Get current date to calculate how many months should have been paid
+            const currentDate = new Date(); 
+
+            data.forEach(row => {
+                const memberId = row['Member ID'] ? row['Member ID'].trim() : '';
+                const name = row['Member Name'] ? row['Member Name'].trim() : 'Unknown';
+                const initialShare = parseFloat(row['Initial share (mad)']) || 0;
+                const monthlyShare = parseFloat(row['monthly share (mad)']) || 0;
+                const paidMonths = parseInt(row['number of paid months']) || 0;
+                const startingMonthStr = row['Starting month'];
+
+                // 1. Calculate the financial sum contributed by this user
+                const userTotalContributed = initialShare + (monthlyShare * paidMonths);
+                totalPot += userTotalContributed;
+
+                // 2. Calculate missed/lacked months
+                let lackedMonths = 0;
+                if (startingMonthStr) {
+                    const startDate = new Date(startingMonthStr);
+                    // Calculates total expected months from start date to today
+                    const expectedMonths = (currentDate.getFullYear() - startDate.getFullYear()) * 12 + (currentDate.getMonth() - startDate.getMonth()) + 1;
+                    lackedMonths = Math.max(0, expectedMonths - paidMonths);
+                }
+
+                // 3. Render the Card
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                // Image element (looks for images/M01.jpg, etc. Fallback to initials if missing)
+                const img = document.createElement('img');
+                img.className = 'avatar';
+                img.src = `images/${memberId}.jpg`;
+                img.alt = `${name}'s photo`;
+                img.onerror = function() {
+                    // Generates a sleek dark placeholder with initials if image isn't in repo yet
+                    this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=333&color=fff&size=150`;
+                };
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'member-name';
+                nameEl.innerText = name;
+
+                const statsPaid = document.createElement('div');
+                statsPaid.className = 'stats';
+                statsPaid.innerHTML = `
+                    <span class="stat-label">Months Paid</span>
+                    <span class="stat-value paid">${paidMonths}</span>
+                `;
+
+                const statsLacked = document.createElement('div');
+                statsLacked.className = 'stats';
+                const lackedClass = lackedMonths > 0 ? 'lacked' : 'zero-lacked';
+                statsLacked.innerHTML = `
+                    <span class="stat-label">Months Lacked</span>
+                    <span class="stat-value ${lackedClass}">${lackedMonths}</span>
+                `;
+
+                card.appendChild(img);
+                card.appendChild(nameEl);
+                card.appendChild(statsPaid);
+                card.appendChild(statsLacked);
+                
+                grid.appendChild(card);
+            });
+
+            // Format total number with commas (e.g., 4,000)
+            document.getElementById('total-amount').innerHTML = `${totalPot.toLocaleString()} <span class="currency">MAD</span>`;
+        }
+    </script>
+</body>
+</html>
