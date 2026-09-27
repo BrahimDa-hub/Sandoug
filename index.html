@@ -2,19 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Viewport meta tag is crucial for mobile scaling -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- PWA Requirements -->
     <title>Sandoug</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
-    <!-- iOS support -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Sandoug">
 
-    <script src="[https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js](https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js)"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --bg-color: #121212;
@@ -30,7 +27,6 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            /* Prevent text selection on mobile for app-like feel */
             -webkit-tap-highlight-color: transparent; 
         }
 
@@ -39,12 +35,11 @@
             color: var(--text-primary);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
-            /* Extra padding at bottom for mobile scrolling */
             padding: 1rem 1rem 3rem 1rem; 
         }
 
         .container {
-            max-width: 600px; /* Constrained for mobile/tablet */
+            max-width: 600px; 
             margin: 0 auto;
         }
 
@@ -83,7 +78,6 @@
 
         .grid {
             display: grid;
-            /* Single column on phones, two on slightly larger screens */
             grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
             gap: 1rem;
         }
@@ -153,6 +147,9 @@
             font-size: 1rem;
             color: var(--text-secondary);
             margin-top: 2rem;
+            padding: 1rem;
+            background: var(--card-bg);
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -169,38 +166,51 @@
     </div>
 
     <script>
-        // --- 1. Register Service Worker for PWA functionality ---
+        // 1. Service Worker Registration
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => console.log('ServiceWorker registered'))
-                    .catch(err => console.log('ServiceWorker registration failed: ', err));
-            });
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('ServiceWorker registered'))
+                .catch(err => console.log('ServiceWorker failed: ', err));
         }
 
-        // --- 2. Load and Process Data ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Timestamp prevents aggressive mobile caching of the CSV
-            const csvUrl = 'SANDOUG.csv?v=' + new Date().getTime();
+        // 2. Initialization Function (Runs immediately, bypassing DOM load traps)
+        function initApp() {
+            const loader = document.getElementById('loader');
+
+            // Failsafe: Ensure PapaParse successfully loaded from CDN
+            if (typeof Papa === 'undefined') {
+                loader.innerText = "Error: System resources failed to load. Check your internet connection.";
+                return;
+            }
+
+            // Check if testing locally (file://) or online to prevent protocol blockages
+            const isLocal = window.location.protocol === 'file:';
+            const csvUrl = isLocal ? 'SANDOUG.csv' : 'SANDOUG.csv?v=' + new Date().getTime();
 
             Papa.parse(csvUrl, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    document.getElementById('loader').style.display = 'none';
-                    processData(results.data);
+                    try {
+                        processData(results.data);
+                        loader.style.display = 'none'; // Hide loader only if processing succeeds
+                    } catch (error) {
+                        loader.innerText = "Data error: The CSV file structure is invalid.";
+                        console.error(error);
+                    }
                 },
                 error: function(err) {
-                    document.getElementById('loader').innerText = "Offline or Error loading data.";
-                    console.error("Error loading CSV:", err);
+                    loader.innerText = "Offline or Error loading SANDOUG.csv. Ensure the file is on GitHub.";
+                    console.error("PapaParse Error:", err);
                 }
             });
-        });
+        }
 
         function processData(data) {
             let totalPot = 0;
             const grid = document.getElementById('user-grid');
+            grid.innerHTML = ''; // Clear grid before populating
             const currentDate = new Date(); 
 
             data.forEach(row => {
@@ -223,7 +233,7 @@
                     lackedMonths = Math.max(0, expectedMonths - paidMonths);
                 }
 
-                // Create Card (Optimized for Mobile UI)
+                // Create Card
                 const card = document.createElement('div');
                 card.className = 'card';
 
@@ -235,7 +245,7 @@
                 img.src = `images/${memberId}.jpg`;
                 img.alt = name;
                 img.onerror = function() {
-                    this.src = `[https://ui-avatars.com/api/?name=$](https://ui-avatars.com/api/?name=$){encodeURIComponent(name)}&background=333&color=fff&size=150`;
+                    this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=333&color=fff&size=150`;
                 };
 
                 const nameEl = document.createElement('div');
@@ -274,6 +284,9 @@
 
             document.getElementById('total-amount').innerHTML = `${totalPot.toLocaleString()} <span class="currency">MAD</span>`;
         }
+
+        // Fire initialization directly
+        initApp();
     </script>
 </body>
 </html>
