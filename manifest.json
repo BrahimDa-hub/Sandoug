@@ -1,74 +1,20 @@
-const CACHE_NAME = 'sandoug-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js'
-];
-
-// Install Event
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-  );
-});
-
-// Activate Event - Clean up old caches
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME)
-          .map(name => caches.delete(name))
-      );
-    })
-  );
-});
-
-// Fetch Event
-self.addEventListener('fetch', event => {
-  const requestUrl = new URL(event.request.url);
-
-  // ALWAYS fetch the CSV from the network to get live data. Do not cache it.
-  if (requestUrl.pathname.endsWith('.csv')) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  // For images and avatars (ui-avatars.com), try network first, then cache
-  if (requestUrl.pathname.startsWith('/images/') || requestUrl.hostname === 'ui-avatars.com') {
-    event.respondWith(
-      caches.match(event.request).then(cachedResponse => {
-        const fetchPromise = fetch(event.request).then(networkResponse => {
-          caches.open(CACHE_NAME).then(cache => cacheTo transform this dashboard into a Progressive Web App (PWA) optimized for smartphones, we need to make it installable on mobile devices (giving it an app icon on the home screen and allowing it to run offline/full-screen). 
-
-To achieve this, we need to add a **Web App Manifest**, a **Service Worker**, and ensure the HTML is mobile-first.
-
-Here is the complete setup for your GitHub repository. You will need **three** files in your root directory.
-
-### 1. `manifest.json`
-This file tells the smartphone how the app should appear when installed on the home screen. Save this exactly as `manifest.json` in your repository.
-
-```json
 {
   "name": "Sandoug Savings",
   "short_name": "Sandoug",
-  "description": "Savings account dashboard for members.",
+  "description": "Group savings tracker — live pot dashboard.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#121212",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "images/d/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icon-512.png",
+      "src": "images/d/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

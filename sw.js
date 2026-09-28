@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sandoug-cache-v4'; // Critical version bump
+const CACHE_NAME = 'sandoug-cache-v5'; // Design overhaul — force refresh
 const urlsToCache = [
   './',
   './index.html',
