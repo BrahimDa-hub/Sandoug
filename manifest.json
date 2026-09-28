@@ -1,5 +1,5 @@
 {
-  "name": "Sandoug Savings",
+  "name": "صندوق أهل الطيب",
   "short_name": "Sandoug",
   "description": "Group savings tracker — live pot dashboard.",
   "start_url": "./index.html",
@@ -9,14 +9,16 @@
   "theme_color": "#0a0a0f",
   "icons": [
     {
-      "src": "images/d/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "images/d/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
