@@ -38,7 +38,8 @@ self.addEventListener('fetch', event => {
   }
 
   // 2. HTML Pages: Network-First (Fixes the black screen issue)
-  if (event.request.mode === 'navigate' || event.request.headers.get('accept').includes('text/html')) {
+  const acceptHeader = event.request.headers.get('accept');
+  if (event.request.mode === 'navigate' || (acceptHeader && acceptHeader.includes('text/html'))) {
     event.respondWith(
       fetch(event.request)
         .catch(() => caches.match(event.request)
